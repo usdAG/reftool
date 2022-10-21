@@ -48,3 +48,16 @@ to your ``~/.bash_completion.d`` folder enables autocompletion.
 During the installation, *reftool* creates a configuration file ``~/.config/reftool.ini``.
 Inside this file, the path for the reference archive and some other display related options
 are set. You can adjust these options to your own preferences.
+
+In order to be useful, at least one reference archive should be available within *reftools*
+reference path. The [usd-reference-archive](https://github.com/usdAG/usd-reference-archive)
+is one example for a *reftool* compatible archive. You can have several different archives
+within your reference path.
+
+For a default installation, the following commands can be used to setup a reference archive:
+
+```console
+[user@host ~]$ mkdir -p ~/.local/share/reftool-archives
+[user@host ~]$ cd ~/.local/share/reftool-archives
+[user@host ~]$ git clone https://github.com/usdAG/usd-reference-archive
+```
