@@ -1,0 +1,131 @@
+#!/bin/bash
+
+type _comp_filter &> /dev/null || return
+type _comp_contains &> /dev/null || return
+type _comp_get_parameter &> /dev/null || return
+type _comp_filter_shorts &> /dev/null || return
+
+function _ref_validate() {
+	# Takes a list of strings as argument and checks whether each string
+    # only contains alphanumeric characters.
+    #
+    # Parameters
+    #   input           (string)        Space separated list of strings
+    #
+    # Returns
+    #   retval          (int)           Error / Success
+    #
+    local regex
+
+    regex='^[a-zA-Z0-9\-]+$'
+
+    for word in $1; do
+
+        if ! [[ $word =~ $regex ]]; then
+            return 1
+        fi
+
+    done;
+}
+
+function _ref() {
+
+    local cur prev prev2 opts arg args
+    _init_completion || return
+
+    _count_args "" "@(--comp|--encode|--names|--plain-search|--reference-search|--search)"
+    COMPREPLY=()
+
+    # if previous option expects a non guessable value, we complete nothing
+    if _comp_contains "--comp --names --plain-search --reference-search --search" $prev; then
+        return 0
+
+    # if previous word is --enc, complete encodings:
+    elif [[ "$prev" == '--enc' ]]; then
+        opts="base64 hex html HTML json url URL"
+
+    # if the current word starts with a dash, we complete options
+	elif [[ "$cur" == -* ]]; then
+		opts="--help"
+        opts="${opts} --args"
+        opts="${opts} --comp"
+        opts="${opts} --enc"
+        opts="${opts} --names"
+        opts="${opts} --plain-search"
+        opts="${opts} --reference-search"
+        opts="${opts} --search"
+
+    # if no reference was selected, we complete references
+    elif [[ $args -eq 1 ]]; then
+		opts="$($1 --names)"
+
+    # if a reference was specified, we complete nothing (number expected)
+    elif [[ $args -eq 2 ]]; then
+        return 0
+
+    # if a reference and a number was specified, we complete reference options
+    elif [[ $args -ge 3 ]]; then
+
+        _get_first_arg
+        reference=$arg
+
+        _comp_get_parameter 2
+        number=$arg
+
+        # Our cursor is currently: key=<HERE>       -> We complete reference option values
+        if [[ "$cur" == "=" ]]; then
+
+            if _ref_validate "$reference $number $prev"; then
+                opts=$($1 $reference $number --comp $prev)
+                cur=""
+            fi
+
+        # Our cursor is currently: key=val<HERE>    -> We complete reference option values
+        elif [[ "$cur" != "=" ]] && [[ "$prev" == "=" ]]; then
+
+            prev2="${COMP_WORDS[COMP_CWORD - 2]}"
+
+            if _ref_validate "$reference $number $prev2"; then
+                opts=$($1 $reference $number --comp $prev2)
+            fi
+
+        # We complete reference option keys
+        else
+
+            if _ref_validate "$reference $number"; then
+
+                opts=$($1 $reference $number --args)
+
+                for var in ${COMP_LINE}; do
+
+                    # Filter options that were already specified
+                    if [[ $var =~ ^.+=.+$ ]]; then
+                        opts=( "${opts[@]/${var%=*}}" )
+                    fi
+
+                done
+
+                compopt -o nospace
+            fi
+        fi
+    fi
+
+    # References may return [FILE] as option value, to make use of _filedir completion
+    if [[ "$opts" == "[FILE]" ]]; then
+        _filedir
+		return 0
+
+    # References may return [IP] as option value, to make use of _ip_addresses completion
+    elif [[ "$opts" == "[IP]" ]]; then
+        _ip_addresses
+        return 0
+    fi
+
+    _comp_filter "opts"
+    _comp_filter_shorts "opts"
+    
+	mapfile -t COMPREPLY < <(compgen -W "${opts}" -- "${cur}") 
+	return 0
+}
+
+complete -F _ref ref

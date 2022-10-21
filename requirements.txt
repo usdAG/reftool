@@ -1,0 +1,3 @@
+pyperclip
+PyYAML
+git+https://github.com/qtc-de/ttf
